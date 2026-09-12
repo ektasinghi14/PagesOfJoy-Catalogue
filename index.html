@@ -1,0 +1,46 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PagesofJoy | Book Catalogue</title><style>
+:root{--green:#25634b;--light:#f5f7f3;--ink:#1e2924;--muted:#68736d;--line:#dde5df;--gold:#e7b74f}*{box-sizing:border-box}body{margin:0;background:var(--light);font-family:Arial,sans-serif;color:var(--ink)}header{background:var(--green);color:#fff;padding:18px 16px 22px;position:sticky;top:0;z-index:5}.brand{max-width:900px;margin:auto}.brand h1{margin:0;font-size:25px}.brand p{margin:5px 0 15px;opacity:.88}.search{width:100%;padding:14px;border:0;border-radius:12px;font-size:16px}.wrap{max-width:900px;margin:auto;padding:16px}.filters{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}select,button{padding:11px;border-radius:10px;border:1px solid var(--line);font-size:14px;background:#fff}#count{font-size:13px;color:var(--muted);margin:10px 2px}.books{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:15px;box-shadow:0 2px 8px #00000008}.title{font-weight:700;font-size:17px;margin-bottom:5px}.author{color:var(--muted);font-size:14px;margin-bottom:12px}.tags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}.tag{background:#edf4ee;color:var(--green);padding:5px 8px;border-radius:20px;font-size:12px}.availability{font-size:13px;margin-bottom:12px}.available{color:#168344}.unavailable{color:#b33b3b}.add{width:100%;background:var(--green);color:#fff;border:0;font-weight:bold}.add.added{background:#fff;color:var(--green);border:1px solid var(--green)}.basket{position:fixed;right:16px;bottom:16px;background:var(--gold);border:0;border-radius:30px;padding:14px 18px;font-weight:bold;box-shadow:0 4px 18px #0004;z-index:8}.modal{position:fixed;inset:0;background:#0008;display:none;align-items:flex-end;justify-content:center;z-index:10}.modal.show{display:flex}.panel{width:min(650px,100%);max-height:85vh;overflow:auto;background:#fff;border-radius:20px 20px 0 0;padding:20px}.row{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}.remove{color:#b33b3b;border:0;background:none}.empty{text-align:center;padding:45px;color:var(--muted)}.loadbox{background:#fff7df;border:1px dashed #d6ae52;border-radius:12px;padding:15px;margin-bottom:15px;font-size:14px}input[type=file]{max-width:100%}@media(max-width:550px){.filters{grid-template-columns:1fr}.brand h1{font-size:22px}.wrap{padding:12px}}
+</style></head><body>
+<header><div class="brand"><h1>📚 PagesofJoy</h1><p>Your neighborhood library</p><input id="search" class="search" placeholder="🔍 Search by book title, author or category..."></div></header>
+<main class="wrap"><div id="loadbox" class="loadbox"><b>Loading PagesofJoy catalogue...</b><br>Please wait while we load the latest books.</div><div class="filters"><select id="category"><option value="">All Categories</option></select><select id="age"><option value="">All Ages</option></select><select id="author"><option value="">All Authors</option></select></div><div id="count">No catalogue loaded yet.</div><div id="books" class="books"></div></main>
+<button class="basket" id="basket">🛒 My List (0)</button>
+<div class="modal" id="modal"><div class="panel"><div style="display:flex;justify-content:space-between;align-items:center"><h2 style="margin:0">My Book List</h2><button onclick="closeBasket()">Close</button></div><div id="selected"></div><div id="details" style="display:none;margin-top:18px;border-top:1px solid var(--line);padding-top:15px"><h3>Parent Details</h3><input id="pname" class="search" style="border:1px solid var(--line);margin-bottom:8px" placeholder="Parent name"><input id="phone" class="search" style="border:1px solid var(--line);margin-bottom:8px" placeholder="Mobile number" inputmode="numeric"><button class="add" onclick="submitRequest()">Send Book Request</button></div><p id="requestNote" style="font-size:13px;color:var(--muted)"></p></div></div>
+<script>
+let books=[],selected=[];const $=id=>document.getElementById(id);const uniq=(arr)=>[...new Set(arr.filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+function populate(){for(const [id,key] of [['category','Categories'],['age','TargetAudience'],['author','Authors']]){const s=$(id);s.innerHTML='<option value="">All '+(id==='age'?'Ages':id==='category'?'Categories':'Authors')+'</option>';uniq(books.map(b=>String(b[key]||'').trim())).forEach(v=>s.add(new Option(v,v)));s.onchange=render;}render()}
+function render(){const q=$('search').value.toLowerCase().trim(),cat=$('category').value,age=$('age').value,auth=$('author').value;const list=books.filter(b=>{const hay=[b.Title,b.Authors,b.Categories,b.TargetAudience,b.Language].join(' ').toLowerCase();return(!q||hay.includes(q))&&(!cat||b.Categories===cat)&&(!age||b.TargetAudience===age)&&(!auth||b.Authors===auth)});$('count').textContent=`Showing ${list.length} of ${books.length} books`;$('books').innerHTML=list.length?list.map(b=>{const added=selected.includes(b.BookID),avail=Number(b.AvailableCopies||0)>0;return `<article class="card"><div class="title">${esc(b.Title)}</div><div class="author">${esc(b.Authors||'')}</div><div class="tags">${b.Categories?`<span class="tag">${esc(b.Categories)}</span>`:''}${b.TargetAudience?`<span class="tag">Age: ${esc(b.TargetAudience)}</span>`:''}${b.Language?`<span class="tag">${esc(b.Language)}</span>`:''}</div><div class="availability ${avail?'available':'unavailable'}">${avail?'🟢 Available':'🔴 Currently unavailable'}</div><button class="add ${added?'added':''}" ${!avail?'disabled':''} onclick="toggle('${String(b.BookID).replace(/'/g,'\\\'')}')">${added?'✓ Added to My List':'+ Add to My List'}</button></article>`}).join(''):'<div class="empty">No books found. Try another search.</div>'}
+function esc(x){return String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}function toggle(id){selected=selected.includes(id)?selected.filter(x=>x!==id):[...selected,id];$('basket').textContent=`🛒 My List (${selected.length})`;render()}
+$('search').addEventListener('input',render);
+async function loadCatalogue(){
+  try{
+    const response=await fetch('books.json',{cache:'no-store'});
+    if(!response.ok) throw new Error('books.json not found');
+    const data=await response.json();
+    if(!Array.isArray(data)) throw new Error('Invalid catalogue data');
+    books=data; selected=[];
+    $('loadbox').style.display='none';
+    populate();
+  }catch(err){
+    $('loadbox').innerHTML='<b>Catalogue temporarily unavailable.</b><br>Please try again in a few minutes.';
+    $('count').textContent='Unable to load books.';
+    console.error(err);
+  }
+}
+loadCatalogue();
+$('basket').onclick=()=>{const list=selected.map(id=>books.find(b=>b.BookID===id)).filter(Boolean);$('selected').innerHTML=list.length?list.map(b=>`<div class="row"><span><b>${esc(b.Title)}</b><br><small>${esc(b.Authors||'')}</small></span><button class="remove" onclick="toggle('${String(b.BookID).replace(/'/g,'\\\'')}');$('basket').click()">Remove</button></div>`).join(''):'<div class="empty">Your list is empty. Search and add some books!</div>';$('details').style.display=list.length?'block':'none';$('requestNote').textContent=list.length?'Next step: we will connect this button to your Google Sheet so you receive the parent details and book list automatically.':'';$('modal').classList.add('show')};function closeBasket(){$('modal').classList.remove('show')}
+// PASTE YOUR GOOGLE APPS SCRIPT WEB APP URL HERE after deployment
+const REQUEST_URL = 'PASTE_YOUR_GOOGLE_APPS_SCRIPT_URL_HERE';
+async function submitRequest(){
+ const n=$('pname').value.trim(), p=$('phone').value.trim();
+ if(!n||!p){alert('Please enter parent name and mobile number.');return}
+ if(!selected.length){alert('Please select at least one book.');return}
+ if(REQUEST_URL.includes('PASTE_YOUR')){alert('The catalogue is ready. Please first paste your Google Apps Script Web App URL into REQUEST_URL.');return}
+ const btn=event.target; btn.disabled=true; btn.textContent='Sending...';
+ const payload={parentName:n,mobile:p,books:selected.map(id=>books.find(b=>b.BookID===id)).filter(Boolean).map(b=>({BookID:b.BookID||'',Title:b.Title||'',Authors:b.Authors||''})),submittedAt:new Date().toISOString()};
+ try{
+  await fetch(REQUEST_URL,{method:'POST',body:JSON.stringify(payload),headers:{'Content-Type':'text/plain;charset=utf-8'}});
+  selected=[]; $('basket').textContent='🛒 My List (0)'; render(); closeBasket(); $('pname').value=''; $('phone').value=''; alert('Thank you! Your book request has been sent to PagesofJoy.');
+ }catch(e){alert('Could not send the request. Please check your internet connection and try again.');}
+ finally{btn.disabled=false;btn.textContent='Send Book Request';}
+}
+</script></body></html>
