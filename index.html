@@ -51,32 +51,26 @@ async function submitRequest() {
 
   try {
 
-    const response = await fetch(API_URL, {
+    const formData = new URLSearchParams();
+
+    formData.append('parentName', parentName);
+    formData.append('mobileNumber', mobileNumber);
+    formData.append('childName', childName);
+    formData.append('bookIDs', JSON.stringify(selected));
+
+    await fetch(API_URL, {
       method: 'POST',
-      body: JSON.stringify({
-        parentName: parentName,
-        mobileNumber: mobileNumber,
-        childName: childName,
-        bookIDs: selected
-      })
+      body: formData,
+      mode: 'no-cors'
     });
 
-    const result = await response.json();
-
-    if (!result.success) {
-      throw new Error(result.error || 'Unable to submit request');
-    }
-
     alert(
-      '🎉 Request received!\n\n' +
-      'Your Request ID: ' + result.requestID +
-      '\n\nWe will confirm your books shortly.'
+      '🎉 Your book request has been submitted!\n\n' +
+      'We will confirm your books shortly.'
     );
 
-    // Clear cart
     selected = [];
 
-    // Clear form
     $('pname').value = '';
     $('phone').value = '';
     $('child').value = '';
@@ -85,16 +79,11 @@ async function submitRequest() {
 
     closeBasket();
 
-    // Reload latest availability
-    await loadCatalogue();
+    setTimeout(loadCatalogue, 1500);
 
   } catch (error) {
 
-    alert(
-      'Sorry, something went wrong:\n' +
-      error.message
-    );
-
+    alert('Unable to submit request. Please try again.');
     console.error(error);
 
   } finally {
