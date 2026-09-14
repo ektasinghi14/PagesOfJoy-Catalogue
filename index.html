@@ -23,6 +23,87 @@ $('search').addEventListener('input',render);$('basket').onclick=openBasket;
 async function loadCatalogue(){try{const r=await fetch(API_URL,{cache:'no-store'});if(!r.ok)throw Error('Unable to load');const data=await r.json();if(!Array.isArray(data))throw Error(data.error||'Invalid data');books=data.map(b=>({...b,BookID:String(b.BookID)}));$('loadbox').style.display='none';render()}catch(e){$('loadbox').innerHTML='<b>Catalogue temporarily unavailable.</b><br>Please try again in a few minutes.';console.error(e)}}
 function openBasket(){const list=selected.map(id=>books.find(b=>String(b.BookID)===id)).filter(Boolean);$('cartCount').textContent=`${list.length}/5`;$('selected').innerHTML=list.length?list.map(b=>`<div class="row"><span><b>${esc(b.Title)}</b><br><small>${esc(b.Authors||'')}</small></span><button class="remove" onclick="toggle('${esc(b.BookID)}');openBasket()">Remove</button></div>`).join(''):'<p>Your list is empty. Search and add up to 5 books.</p>';$('details').style.display=list.length?'block':'none';$('requestNote').textContent='Requests will be connected to the Google Sheet in the next step.';$('modal').classList.add('show')}
 function closeBasket(){$('modal').classList.remove('show')}
-function submitRequest(){alert('Next we will add the secure request API so this form saves the parent details and selected books in Google Sheets.');}
+async function submitRequest() {
+
+  const parentName = $('pname').value.trim();
+  const mobileNumber = $('phone').value.trim();
+  const childName = $('child').value.trim();
+
+  if (!parentName) {
+    alert('Please enter parent name');
+    return;
+  }
+
+  if (!mobileNumber) {
+    alert('Please enter mobile number');
+    return;
+  }
+
+  if (selected.length === 0) {
+    alert('Please select at least one book');
+    return;
+  }
+
+  const button = document.querySelector('.submit');
+
+  button.disabled = true;
+  button.textContent = 'Submitting...';
+
+  try {
+
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      body: JSON.stringify({
+        parentName: parentName,
+        mobileNumber: mobileNumber,
+        childName: childName,
+        bookIDs: selected
+      })
+    });
+
+    const result = await response.json();
+
+    if (!result.success) {
+      throw new Error(result.error || 'Unable to submit request');
+    }
+
+    alert(
+      '🎉 Request received!\n\n' +
+      'Your Request ID: ' + result.requestID +
+      '\n\nWe will confirm your books shortly.'
+    );
+
+    // Clear cart
+    selected = [];
+
+    // Clear form
+    $('pname').value = '';
+    $('phone').value = '';
+    $('child').value = '';
+
+    $('basket').textContent = '🛒 My List (0/5)';
+
+    closeBasket();
+
+    // Reload latest availability
+    await loadCatalogue();
+
+  } catch (error) {
+
+    alert(
+      'Sorry, something went wrong:\n' +
+      error.message
+    );
+
+    console.error(error);
+
+  } finally {
+
+    button.disabled = false;
+    button.textContent = 'Submit Book Request';
+
+  }
+
+}
 loadCatalogue();
 </script></body></html>
